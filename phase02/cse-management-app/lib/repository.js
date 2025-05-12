@@ -103,14 +103,27 @@ export async function hasCompletedCourse(studentId, courseId) {
 }
 
 export async function registerStudent(studentId, instructorId, courseId) {
-  return await prisma.registeredStudent.create({
-    data: {
-      student_id: studentId,
-      instructor_course_course_id: courseId,
-      instructor_course_instructor_id: instructorId
+    const alreadyRegistered = await prisma.registeredStudent.findFirst({
+      where: {
+        student_id: studentId,
+        instructor_course_course_id: courseId,
+        instructor_course_instructor_id: instructorId
+      }
+    });
+  
+    if (alreadyRegistered) {
+      throw new Error('Student is already registered to this course.');
     }
-  });
-}
+  
+    return await prisma.registeredStudent.create({
+      data: {
+        student_id: studentId,
+        instructor_course_course_id: courseId,
+        instructor_course_instructor_id: instructorId
+      }
+    });
+  }
+  
 
 /** ---------- INSTRUCTOR ---------- **/
 
