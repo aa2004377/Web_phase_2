@@ -200,3 +200,84 @@ export async function getStudentsInCourse(courseId) {
     }
   });
 }
+
+/** ---------- STATISTICS ---------- **/
+
+export async function getStatistics() {
+  const [
+    totalStudents,
+    totalInstructors,
+    totalCourses,
+    totalEnrollments,
+    validatedClasses,
+    pendingClasses,
+    courseWithMostEnrollments,
+    instructorWithMostCourses,
+    avgCoursesPerStudent,
+    studentsWith3OrMoreCourses
+  ] = await Promise.all([
+    prisma.student.count(),
+    prisma.instructor.count(),
+    prisma.course.count(),
+    prisma.registeredStudent.count(),
+    prisma.instructorCourse.count({ where: { status: 'validated' } }),
+    prisma.instructorCourse.count({ where: { status: 'pending' } }),
+    prisma.registeredStudent.groupBy({
+      by: ['instructor_course_course_id'],
+      _count: { student_id: true },
+      orderBy: { _count: { student_id: 'desc' } },
+      take: 1
+    }),
+    prisma.instructorCourse.groupBy({
+      by: ['instructor_id'],
+      _count: { course_id: true },
+      orderBy: { _count: { course_id: 'desc' } },
+      take: 1
+    }),
+    prisma.student.findMany({
+      include: {
+        registeredCourses: true
+      }
+    }).then(students => {
+      const total = students.reduce((sum, s) => sum + s.registeredCourses.length, 0);
+      return (students.length > 0) ? (total / students.length).toFixed(2) : 0;
+    }),
+    prisma.student.findMany({
+      where: {
+        registeredCourses: {
+          some: {}
+        }
+      },
+      include: {
+        registeredCourses: true
+      }
+    }).then(students =>
+      students.filter(s => s.registeredCourses.length >= 3).length
+    )
+  ]);
+
+  const mostPopularCourse = courseWithMostEnrollments[0]
+    ? await prisma.course.findUnique({
+        where: { course_id: courseWithMostEnrollments[0].instructor_course_course_id }
+      })
+    : null;
+
+  const topInstructor = instructorWithMostCourses[0]
+    ? await prisma.instructor.findUnique({
+        where: { id: instructorWithMostCourses[0].instructor_id }
+      })
+    : null;
+
+  return {
+    totalStudents,
+    totalInstructors,
+    totalCourses,
+    totalEnrollments,
+    validatedClasses,
+    pendingClasses,
+    mostPopularCourse: mostPopularCourse?.course_name || 'N/A',
+    topInstructor: topInstructor?.username || 'N/A',
+    avgCoursesPerStudent,
+    studentsWith3OrMoreCourses
+  };
+}
