@@ -32,6 +32,16 @@ export const authOptions = {
   ],
   secret: process.env.NEXTAUTH_SECRET,
   session: { strategy: "jwt" },
+
+  callbacks: {
+    async session({ session, token }) {
+      session.user.id = token.sub;
+      return session;
+    },
+    async redirect({ url, baseUrl }) {
+      return `${baseUrl}/statistics`;
+    },
+  },
 };
 
 const handler = NextAuth(authOptions);
