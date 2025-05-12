@@ -1,10 +1,20 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-console.log('Seeding the database...');
+const GRADES = ['A', 'B+', 'B', 'C+', 'C', 'D+', 'D', 'F'];
+const VALID_GRADES = ['A', 'B+', 'B', 'C+', 'C', 'D+', 'D'];
+
+function randomValidGrade() {
+  return VALID_GRADES[Math.floor(Math.random() * VALID_GRADES.length)];
+}
+
+function getRandomCourseIds(courseIds, count) {
+  const shuffled = [...courseIds].sort(() => 0.5 - Math.random());
+  return shuffled.slice(0, count);
+}
 
 async function main() {
-  //clear data
+  console.log('⏳ Clearing database...');
   await prisma.registeredStudent.deleteMany();
   await prisma.instructorCourse.deleteMany();
   await prisma.pendingCourse.deleteMany();
@@ -14,10 +24,9 @@ async function main() {
   await prisma.student.deleteMany();
   await prisma.instructor.deleteMany();
   await prisma.admin.deleteMany();
-  console.log('database cleared');
+  console.log('✅ Database cleared.');
 
-
-  //create instructor
+  console.log('👨‍🏫 Creating instructors...');
   await prisma.instructor.createMany({
     data: [
       { id: '4', username: 'instructor1', password: 'password4' },
@@ -25,16 +34,14 @@ async function main() {
       { id: '6', username: 'instructor3', password: 'password6' }
     ]
   });
-  console.log('Instructors created.');
 
-  //create admin
+  console.log('👮 Creating admin...');
   await prisma.admin.create({
     data: { id: '7', username: 'admin1', password: 'password7' }
   });
-  console.log('Admin created.');
 
-  //create course
-  const courses = [
+  console.log('📘 Creating core courses...');
+  const coreCourses = [
     {
       course_id: 101,
       course_name: "Programming Concepts",
@@ -65,199 +72,152 @@ async function main() {
     },
     {
       course_id: 105,
-      course_name: "calculus",
-      course_description: "math class 101",
-      category: "math",
+      course_name: "Calculus",
+      course_description: "",
+      category: "Math",
       status: "open"
     },
     {
       course_id: 106,
-      course_name: "arabic",
-      course_description: "arabic class 101",
-      category: "language",
+      course_name: "Arabic",
+      course_description: "",
+      category: "Language",
       status: "open"
     },
     {
       course_id: 112,
-      course_name: "arabic2",
-      course_description: "advanced Arabic course",
-      category: "language",
+      course_name: "Arabic 2",
+      course_description: "Advanced Arabic course",
+      category: "Language",
       status: "open"
     }
   ];
+  await prisma.course.createMany({ data: coreCourses });
 
-  await prisma.course.createMany({ data: courses });
-  console.log('Courses created.');
-  //create prerequisites
   await prisma.prerequisite.createMany({
     data: [
       { course_id: 102, prerequisite_id: 101 },
       { course_id: 103, prerequisite_id: 101 },
-      { course_id: 103, prerequisite_id: 102 }, 
-      { course_id: 103, prerequisite_id: 104 }, 
+      { course_id: 103, prerequisite_id: 102 },
+      { course_id: 103, prerequisite_id: 104 },
       { course_id: 104, prerequisite_id: 101 },
-      { course_id: 104, prerequisite_id: 102 }, 
-      { course_id: 112, prerequisite_id: 106 } 
+      { course_id: 104, prerequisite_id: 102 },
+      { course_id: 112, prerequisite_id: 106 }
     ]
   });
 
-  console.log('Prerequisites created.');
+  console.log('👩‍🎓 Creating 3 original students...');
+  await prisma.student.createMany({
+    data: [
+      { id: '202004377', username: 'student1', password: 'password1' },
+      { id: '202002180', username: 'student2', password: 'password2' },
+      { id: '202210817', username: 'student3', password: 'password3' }
+    ]
+  });
 
-  // Create Students with their completed and pending courses
-  const students = [
-    {
-      id: '202004377',
-      username: 'student1',
-      password: 'password1',
-      completedCourses: [
-        { course_id: 101, grade: 'A' },
-        { course_id: 102, grade: 'B+' },
-        { course_id: 104, grade: 'B' }
-      ],
-      pendingCourses: [
-        { course_id: 105, instructor_id: '6', approved: true }
-      ]
-    },
-    {
-      id: '202002180',
-      username: 'student2',
-      password: 'password2',
-      completedCourses: [
-        { course_id: 101, grade: 'B' },
-        { course_id: 102, grade: 'C+' }
-      ],
-      pendingCourses: [
-        { course_id: 105, instructor_id: '6', approved: true }
-      ]
-    },
-    {
-      id: '202210817',
-      username: 'student3',
-      password: 'password3',
-      completedCourses: [],
-      pendingCourses: []
-    }
-  ];
+  await prisma.completedCourse.createMany({
+    data: [
+      { student_id: '202004377', course_id: 101, grade: 'A' },
+      { student_id: '202004377', course_id: 102, grade: 'B+' },
+      { student_id: '202004377', course_id: 104, grade: 'B' },
+      { student_id: '202002180', course_id: 101, grade: 'B' },
+      { student_id: '202002180', course_id: 102, grade: 'C+' }
+    ]
+  });
 
-  for (const student of students) {
+  console.log('📘 Creating 50 additional courses...');
+  const extraCourseData = [];
+  for (let i = 1; i <= 50; i++) {
+    extraCourseData.push({
+      course_id: 200 + i,
+      course_name: `Course ${i}`,
+      course_description: `This is the description for Course ${i}`,
+      category: i % 2 === 0 ? 'Programming' : 'Math',
+      status: 'open',
+    });
+  }
+  await prisma.course.createMany({ data: extraCourseData });
+
+  const allCourses = await prisma.course.findMany();
+  const allCourseIds = allCourses.map(c => c.course_id);
+
+  console.log('👩‍🎓 Creating 500 additional students...');
+  for (let i = 4; i <= 503; i++) {
+    const studentId = `s${String(i).padStart(5, '0')}`;
+    const completedCourses = getRandomCourseIds(allCourseIds, Math.floor(Math.random() * 5) + 1).map(course_id => ({
+      course_id,
+      grade: randomValidGrade()
+    }));
+
     await prisma.student.create({
       data: {
-        id: student.id,
-        username: student.username,
-        password: student.password,
+        id: studentId,
+        username: `student${i}`,
+        password: `pass${i}`,
         completedCourses: {
-          create: student.completedCourses
-        },
-        pendingCourses: {
-          create: student.pendingCourses
+          create: completedCourses
         }
       }
     });
   }
 
-  console.log('Students created.');
+  console.log('📚 Creating instructorCourse entries...');
+  const instructors = ['4', '5', '6'];
+  for (let course of allCourses) {
+    const alreadyExists = await prisma.instructorCourse.findFirst({
+      where: { course_id: course.course_id }
+    });
 
-  const instructorCourses = [
-    // Course 101
-    {
-      course_id: 101,
-      instructor_id: '5', // instructor2
-      capacity: 2,
-      status: 'validated',
-      registeredStudents: []
-    },
-    {
-      course_id: 101,
-      instructor_id: '4', // instructor1
-      capacity: 6,
-      status: 'pending',
-      registeredStudents: ['202210817']
-    },
-    // Course 102
-    {
-      course_id: 102,
-      instructor_id: '4', // instructor1
-      capacity: 3,
-      status: 'validated',
-      registeredStudents: []
-    },
-    {
-      course_id: 102,
-      instructor_id: '6', // instructor3
-      capacity: 2,
-      status: 'validated',
-      registeredStudents: []
-    },
-    // Course 103
-    {
-      course_id: 103,
-      instructor_id: '4', // instructor1
-      capacity: 2,
-      status: 'validated',
-      registeredStudents: ['202004377']
-    },
-    // Course 104
-    {
-      course_id: 104,
-      instructor_id: '6', // instructor3
-      capacity: 2,
-      status: 'validated',
-      registeredStudents: ['202002180']
-    },
-    // Course 105
-    {
-      course_id: 105,
-      instructor_id: '6', // instructor3
-      capacity: 5,
-      status: 'cancelled',
-      registeredStudents: []
-    },
-    {
-      course_id: 105,
-      instructor_id: '4', // instructor1
-      capacity: 3,
-      status: 'validated',
-      registeredStudents: ['202210817']
-    },
-    // Course 106
-    {
-      course_id: 106,
-      instructor_id: '4', // instructor1
-      capacity: 5,
-      status: 'validated',
-      registeredStudents: ['202002180', '202004377', '202210817']
-    },
-    // Course 112
-    {
-      course_id: 112,
-      instructor_id: '5', // instructor2
-      capacity: 11,
-      status: 'validated',
-      registeredStudents: []
+    if (!alreadyExists) {
+      const assignedInstructor = instructors[Math.floor(Math.random() * instructors.length)];
+      await prisma.instructorCourse.create({
+        data: {
+          course_id: course.course_id,
+          instructor_id: assignedInstructor,
+          capacity: 30,
+          status: 'validated'
+        }
+      });
     }
-  ];
-
-  for (const ic of instructorCourses) {
-    await prisma.instructorCourse.create({
-      data: {
-        course_id: ic.course_id,
-        instructor_id: ic.instructor_id,
-        capacity: ic.capacity,
-        status: ic.status,
-        registeredStudents: {
-          create: ic.registeredStudents.map(student_id => ({
-            student_id: student_id
-          }))
-        }
-      }
-    });
   }
-  console.log('Instructor courses created.');
+
+  console.log('📝 Registering 300 students in random courses...');
+  const instructorCourses = await prisma.instructorCourse.findMany();
+  for (let i = 4; i <= 303; i++) {
+    const studentId = `s${String(i).padStart(5, '0')}`;
+    const courseAssignments = getRandomCourseIds(allCourseIds, 3);
+
+    for (let courseId of courseAssignments) {
+      const instructorCourse = instructorCourses.find(ic => ic.course_id === courseId);
+      if (!instructorCourse) continue;
+
+      const hasCompleted = await prisma.completedCourse.findUnique({
+        where: {
+          course_id_student_id: {
+            course_id: courseId,
+            student_id: studentId
+          }
+        }
+      });
+
+      if (!hasCompleted) {
+        await prisma.registeredStudent.create({
+          data: {
+            student_id: studentId,
+            instructor_course_course_id: courseId,
+            instructor_course_instructor_id: instructorCourse.instructor_id
+          }
+        });
+      }
+    }
+  }
+
+  console.log('✅ Seeding complete.');
 }
 
 main()
   .catch(e => {
-    console.error(e);
+    console.error('❌ Error:', e);
     process.exit(1);
   })
   .finally(async () => {
